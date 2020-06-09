@@ -182,6 +182,7 @@ subjects:
     - allocatable_cpu_cores
     - allocatable_memory_bytes
     - allocatable_pods
+    - condition (string, [see below](#node-condition))
 
 * kubernetes_persistentvolume
   - tags:
@@ -242,6 +243,25 @@ subjects:
     - replicas_updated
     - spec_replicas
     - observed_generation
+
+#### node `condition`
+
+The node "condition" field is saved with a corresponding `status` tag with
+values true, false, or unknown. For the `Ready` condition field, the following
+tags are also added:
+
+- architecture
+- boot_id
+- container_runtime_version
+- kernel_version
+- kubelet_version
+- kube_proxy_version
+- machine_id
+- os_image
+- os
+- system_uuid
+- pod_cidr
+- provider_id
 
 #### pv `phase_type`
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ericchiang/k8s/apis/core/v1"
+	v1 "github.com/ericchiang/k8s/apis/core/v1"
 	metav1 "github.com/ericchiang/k8s/apis/meta/v1"
 	"github.com/ericchiang/k8s/apis/resource"
 
@@ -40,11 +40,15 @@ func TestNode(t *testing.T) {
 							{
 								Status: &v1.NodeStatus{
 									NodeInfo: &v1.NodeSystemInfo{
+										Architecture:            toStrPtr("amd64"),
+										BootID:                  toStrPtr("my-boot-id"),
 										KernelVersion:           toStrPtr("4.14.48-coreos-r2"),
+										OperatingSystem:         toStrPtr("linux"),
 										OsImage:                 toStrPtr("Container Linux by CoreOS 1745.7.0 (Rhyolite)"),
 										ContainerRuntimeVersion: toStrPtr("docker://18.3.1"),
 										KubeletVersion:          toStrPtr("v1.10.3"),
 										KubeProxyVersion:        toStrPtr("v1.10.3"),
+										MachineID:               toStrPtr("cd5d95a43a6e"),
 									},
 									Phase: toStrPtr("Running"),
 									Capacity: map[string]*resource.Quantity{
@@ -65,7 +69,7 @@ func TestNode(t *testing.T) {
 									},
 									Conditions: []*v1.NodeCondition{
 										{Type: toStrPtr("Ready"), Status: toStrPtr("true"), LastTransitionTime: &metav1.Time{Seconds: toInt64Ptr(now.Unix())}},
-										{Type: toStrPtr("OutOfDisk"), Status: toStrPtr("false"), LastTransitionTime: &metav1.Time{Seconds: toInt64Ptr(created.Unix())}},
+										{Type: toStrPtr("DiskPressure"), Status: toStrPtr("false"), LastTransitionTime: &metav1.Time{Seconds: toInt64Ptr(created.Unix())}},
 									},
 								},
 								Spec: &v1.NodeSpec{
@@ -114,6 +118,38 @@ func TestNode(t *testing.T) {
 							"node_name": "node1",
 						},
 					},
+					{
+						Measurement: nodeMeasurement,
+						Fields: map[string]interface{}{
+							"condition": "Ready",
+						},
+						Tags: map[string]string{
+							"node_name":                 "node1",
+							"status":                    "true",
+							"machine_id":                "cd5d95a43a6e",
+							"architecture":              "amd64",
+							"boot_id":                   "my-boot-id",
+							"container_runtime_version": "docker://18.3.1",
+							"kernel_version":            "4.14.48-coreos-r2",
+							"kubelet_version":           "v1.10.3",
+							"kube_proxy_version":        "v1.10.3",
+							"os_image":                  "Container Linux by CoreOS 1745.7.0 (Rhyolite)",
+							"os":                        "linux",
+							"system_uuid":               "",
+							"pod_cidr":                  "",
+							"provider_id":               "aws:///us-east-1c/i-0c00",
+						},
+					},
+					{
+						Measurement: nodeMeasurement,
+						Fields: map[string]interface{}{
+							"condition": "DiskPressure",
+						},
+						Tags: map[string]string{
+							"node_name": "node1",
+							"status":    "false",
+						},
+					},
 				},
 			},
 			hasError: false,
@@ -143,27 +179,15 @@ func TestNode(t *testing.T) {
 		} else if v.output != nil && len(v.output.Metrics) > 0 {
 			for i := range v.output.Metrics {
 				measurement := v.output.Metrics[i].Measurement
-				var keyTag string
-				switch measurement {
-				case nodeMeasurement:
-					keyTag = "node"
-				}
-				var j int
-				for j = range acc.Metrics {
-					if acc.Metrics[j].Measurement == measurement &&
-						acc.Metrics[j].Tags[keyTag] == v.output.Metrics[i].Tags[keyTag] {
-						break
-					}
-				}
 
 				for k, m := range v.output.Metrics[i].Tags {
-					if acc.Metrics[j].Tags[k] != m {
-						t.Fatalf("%s: tag %s metrics unmatch Expected %s, got %s, measurement %s, j %d\n", v.name, k, m, acc.Metrics[j].Tags[k], measurement, j)
+					if acc.Metrics[i].Tags[k] != m {
+						t.Fatalf("%s: tag '%s' metrics unmatch Expected '%s', got '%s', measurement '%s', i %d\n", v.name, k, m, acc.Metrics[i].Tags[k], measurement, i)
 					}
 				}
 				for k, m := range v.output.Metrics[i].Fields {
-					if acc.Metrics[j].Fields[k] != m {
-						t.Fatalf("%s: field %s metrics unmatch Expected %v(%T), got %v(%T), measurement %s, j %d\n", v.name, k, m, m, acc.Metrics[j].Fields[k], acc.Metrics[i].Fields[k], measurement, j)
+					if acc.Metrics[i].Fields[k] != m {
+						t.Fatalf("%s: field '%s' metrics unmatch Expected '%v(%T)', got '%v(%T)', measurement %s, j %d\n", v.name, k, m, m, acc.Metrics[i].Fields[k], acc.Metrics[i].Fields[k], measurement, i)
 					}
 				}
 			}

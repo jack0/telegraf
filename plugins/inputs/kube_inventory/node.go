@@ -2,8 +2,9 @@ package kube_inventory
 
 import (
 	"context"
+	"strings"
 
-	"github.com/ericchiang/k8s/apis/core/v1"
+	v1 "github.com/ericchiang/k8s/apis/core/v1"
 
 	"github.com/influxdata/telegraf"
 )
@@ -51,6 +52,34 @@ func (ki *KubernetesInventory) gatherNode(n v1.Node, acc telegraf.Accumulator) e
 	}
 
 	acc.AddFields(nodeMeasurement, fields, tags)
+
+	for _, val := range n.Status.Conditions {
+		fields := map[string]interface{}{
+			"condition": val.GetType(),
+		}
+
+		tags["status"] = strings.ToLower(val.GetStatus())
+
+		if info := n.Status.NodeInfo; fields["condition"] == "Ready" && info != nil {
+			tags["machine_id"] = info.GetMachineID()
+			tags["architecture"] = info.GetArchitecture()
+			tags["boot_id"] = info.GetBootID()
+			tags["container_runtime_version"] = info.GetContainerRuntimeVersion()
+			tags["kernel_version"] = info.GetKernelVersion()
+			tags["kubelet_version"] = info.GetKubeletVersion()
+			tags["kube_proxy_version"] = info.GetKubeProxyVersion()
+			tags["os_image"] = info.GetOsImage()
+			tags["os"] = info.GetOperatingSystem()
+			tags["system_uuid"] = info.GetSystemUUID()
+
+			if n.Spec != nil {
+				tags["pod_cidr"] = n.Spec.GetPodCIDR()
+				tags["provider_id"] = n.Spec.GetProviderID()
+			}
+		}
+
+		acc.AddFields(nodeMeasurement, fields, tags)
+	}
 
 	return nil
 }
